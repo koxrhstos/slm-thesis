@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Enhanced Multi-Source Legal RAG Chatbot</title>
+    <style>
+        /* --- Theme & Reset --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #3b82f6;
+            --accent-color: #f59e0b;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border-color: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        [data-theme="dark"] {
+            --primary-color: #3b82f6;
+            --secondary-color: #1e40af;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --border-color: #374151;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        /* --- Layout --- */
+        .app-container { max-width: 1400px; margin: 0 auto; padding: 20px; min-height: 100vh; display:flex; flex-direction:column; }
+        .header { text-align:center; margin-bottom:30px; animation: slideInDown 0.8s ease; }
+        .header h1 { color:white; font-size:2.5rem; font-weight:700; margin-bottom:10px; text-shadow:0 2px 4px rgba(0,0,0,0.3); }
+        .header p { color: rgba(255,255,255,0.9); font-size:1.1rem; margin-bottom:20px; }
+        .tech-badges { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+        .badge { background: rgba(255,255,255,0.2); color:white; padding:6px 12px; border-radius:20px; font-size:0.9rem; font-weight:500; backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,0.1); }
+
+        .main-content { display:grid; grid-template-columns: 1fr 320px; gap:30px; flex:1; }
+
+        /* --- Chat card --- */
+        .chat-container {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            display:flex;
+            flex-direction:column;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: slideInLeft 0.8s ease;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:15px;
+        }
+        .chat-header h2 { margin:0; font-size:1.2rem; }
+        .chat-header p { margin:0; opacity:0.9; font-size:0.95rem; }
+
+        .status { display:flex; align-items:center; gap:8px; }
+        .status-dot { width:12px; height:12px; background:var(--accent-color); border-radius:50%; animation: pulse 2s infinite; }
+
+        .chat-messages {
+            flex:1;
+            padding:20px;
+            overflow-y:auto;
+            max-height: calc(100vh - 420px);
+            background: var(--bg-secondary);
+        }
+
+        .message { margin-bottom:20px; animation: fadeIn 0.5s ease; }
+        .message.user { text-align:right; }
+        .message-content { display:inline-block; max-width:80%; padding:15px 20px; border-radius:20px; position:relative; word-break:break-word; line-height:1.5; }
+        .message.user .message-content { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color:white; border-bottom-right-radius:5px; }
+        .message.bot .message-content { background: var(--bg-primary); border:1px solid var(--border-color); color:var(--text-primary); border-bottom-left-radius:5px; box-shadow: var(--shadow); }
+
+        .message-stats { font-size:0.8rem; color:var(--text-secondary); margin-top:8px; display:flex; gap:15px; flex-wrap:wrap; }
+        .stat-item { display:flex; align-items:center; gap:5px; background: rgba(59,130,246,0.08); padding:4px 8px; border-radius:12px; font-size:0.85rem; }
+
+        .method-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:0.82rem; font-weight:600; margin-bottom:8px; }
+        .local-badge { background:#e0f2fe; color:#01579b; }
+        .remote-badge { background:#f3e5f5; color:#4a148c; }
+        .retry-badge { background:#fff3e0; color:#e65100; }
+
+        .chat-input { padding:20px; background: var(--bg-primary); border-top:1px solid var(--border-color); }
+        .input-container { display:flex; gap:10px; align-items:end; }
+        .input-field {
+            flex:1; padding:15px 20px; border:2px solid var(--border-color); border-radius:25px; background: var(--bg-secondary); color:var(--text-primary); font-size:1rem; resize:none; max-height:120px; min-height:50px; transition:all 0.3s ease;
+        }
+        .input-field:focus { outline:none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
+        .send-button { width:50px; height:50px; border:none; border-radius:50%; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color:white; font-size:1.2rem; cursor:pointer; transition:all 0.3s ease; display:flex; align-items:center; justify-content:center; }
+        .send-button:hover { transform: scale(1.05); box-shadow:var(--shadow-lg); }
+        .send-button:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+        /* --- Sidebar panels --- */
+        .sidebar { display:flex; flex-direction:column; gap:20px; animation: slideInRight 0.8s ease; }
+        .panel { background: var(--bg-primary); border-radius:20px; padding:20px; box-shadow: var(--shadow-lg); backdrop-filter: blur(20px); border:1px solid rgba(255,255,255,0.1); }
+        .panel h3 { color: var(--primary-color); font-size:1.1rem; margin-bottom:12px; font-weight:600; }
+        .settings-group { margin-bottom:15px; }
+        .settings-group label { display:block; color:var(--text-secondary); font-size:0.95rem; margin-bottom:8px; }
+        
+        .toggle { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; }
+        .switch { position:relative; width:50px; height:24px; background:var(--border-color); border-radius:12px; cursor:pointer; transition:all 0.3s ease; }
+        .switch.active { background: var(--primary-color); }
+        .switch::after { content:''; position:absolute; width:20px; height:20px; background:white; border-radius:50%; top:2px; left:2px; transition:all 0.3s ease; box-shadow: var(--shadow); }
+        .switch.active::after { left:28px; }
+
+        .weight-slider { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+        .weight-slider input { flex:1; }
+        .weight-value { min-width:50px; font-size:0.9rem; color:var(--text-secondary); }
+
+        .quick-questions { display:flex; flex-direction:column; gap:10px; }
+        .quick-question { padding:12px 15px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:12px; cursor:pointer; transition:all 0.3s ease; font-size:0.95rem; color:var(--text-primary); }
+        .quick-question:hover { background:var(--primary-color); color:white; transform:translateY(-2px); box-shadow:var(--shadow); }
+
+        .system-status { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+        .status-item { text-align:center; padding:15px; background:var(--bg-secondary); border-radius:12px; border:1px solid var(--border-color); }
+        .status-value { font-size:1.4rem; font-weight:700; color:var(--primary-color); }
+        .status-label { font-size:0.8rem; color:var(--text-secondary); margin-top:5px; }
+
+        .loading { display:none; align-items:center; justify-content:center; gap:10px; color:var(--text-secondary); margin:20px 0; }
+        .loading.show { display:flex; }
+        .spinner { width:20px; height:20px; border:2px solid var(--border-color); border-top:2px solid var(--primary-color); border-radius:50%; animation: spin 1s linear infinite; }
+
+        .controls-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+        .btn { padding:8px 12px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.3s ease; }
+        .btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .btn.primary { background:linear-gradient(135deg,var(--primary-color),var(--secondary-color)); color:white; }
+        .btn.ghost { background:transparent; border:1px solid var(--border-color); color:var(--text-primary); }
+        .btn.warn { background:var(--accent-color); color:white; }
+        .btn.success { background:var(--success-color); color:white; }
+
+        .radio-list label { display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer; font-size:0.95rem; }
+        input[type="radio"] { transform:scale(1.05); margin-right:6px; }
+
+        .error-message { background: rgba(239,68,68,0.08); border:1px solid var(--error-color); color:var(--error-color); padding:12px; border-radius:12px; }
+
+        .source-status { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:10px; }
+        .source-item { text-align:center; padding:8px; background:var(--bg-secondary); border-radius:8px; font-size:0.8rem; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:0.5 } }
+        @keyframes fadeIn { from{ opacity:0; transform:translateY(10px) } to{ opacity:1; transform:translateY(0) } }
+        @keyframes slideInDown { from{ opacity:0; transform:translateY(-30px) } to{ opacity:1; transform:translateY(0) } }
+        @keyframes slideInLeft { from{ opacity:0; transform:translateX(-30px) } to{ opacity:1; transform:translateX(0) } }
+        @keyframes slideInRight { from{ opacity:0; transform:translateX(30px) } to{ opacity:1; transform:translateX(0) } }
+
+        @media (max-width: 900px) {
+            .main-content { grid-template-columns: 1fr; }
+            .header h1 { font-size:2rem; }
+            .system-status { grid-template-columns: 1fr; }
+            .source-status { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>🏛️ Enhanced Multi-Source Legal RAG</h1>
+            <p>Προηγμένο Σύστημα Νομικών Συμβουλών με Multi-Source AI Technology</p>
+            <div class="tech-badges">
+                <span class="badge">📚 QA Database</span>
+                <span class="badge">📝 Notes Database</span>
+                <span class="badge">⚖️ Laws Database</span>
+                <span class="badge">🔍 Hybrid Search</span>
+                <span class="badge">🤖 Local + Remote LLM</span>
+                <span class="badge">🇬🇷 Greek Optimized</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Chat area -->
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div>
+                        <h2>💬 Multi-Source Νομική Συνομιλία</h2>
+                        <p>Αναζήτηση σε QA, Notes & Laws βάσεις δεδομένων</p>
+                    </div>
+                    <div class="status">
+                        <div class="status-dot" id="statusDot"></div>
+                        <div>
+                            <div id="statusText">Φόρτωση...</div>
+                            <div style="font-size:0.82rem; color:rgba(255,255,255,0.9)" id="systemInfo"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot">
+                        <div class="message-content">
+                            Γεια σας! Είμαι ο προηγμένος Multi-Source νομικός σύμβουλος που χρησιμοποιεί:
+                            <br><br>
+                            🔹 <strong>QA Database:</strong> Ερωταπαντήσεις νομικών θεμάτων
+                            <br>🔹 <strong>Notes Database:</strong> Σημειώσεις και παρατηρήσεις
+                            <br>🔹 <strong>Laws Database:</strong> Νομοθεσία και νόμοι
+                            <br><br>
+                            Μπορείτε να προσαρμόσετε τα βάρη των πηγών στις ρυθμίσεις για καλύτερα αποτελέσματα!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span id="loadingLabel">Multi-source αναζήτηση...</span>
+                </div>
+
+                <div class="chat-input">
+                    <div class="input-container">
+                        <textarea id="messageInput" class="input-field" placeholder="Γράψε την ερώτησή σου εδώ... (π.χ. Τι άδειες δικαιούμαι;)" rows="1"></textarea>
+                        <button id="sendButton" class="send-button" title="Αποστολή με Local LLM" disabled>➤</button>
+                    </div>
+                    <div class="controls-row">
+                        <button id="remoteButton" class="btn primary" title="Χρήση Remote LLM" disabled>☁️ Remote LLM</button>
+                        <button id="reviewButton" class="btn success" title="Review Mode: Local → Remote Review" disabled>🔍 Review Mode</button>
+                        <button id="retryButton" class="btn warn" disabled>↻ Retry με Remote</button>
+                        <button id="retryReviewButton" class="btn warn" disabled>🔄 Retry Review</button>
+                        <button id="testRemoteButton" class="btn ghost">🔌 Test Remote</button>
+                        <button id="batchButton" class="btn ghost" disabled>📦 Batch Mode</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Multi-Source Configuration -->
+                <div class="panel">
+                    <h3>Multi-Source Config</h3>
+                    <div class="settings-group">
+                        <label>QA Weight: <span id="qaWeightValue">0.60</span></label>
+                        <div class="weight-slider">
+                            <input type="range" id="qaWeight" min="0" max="1" step="0.05" value="0.6">
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <label>Notes Weight: <span id="notesWeightValue">0.35</span></label>
+                        <div class="weight-slider">
+                            <input type="range" id="notesWeight" min="0" max="1" step="0.05" value="0.35">
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <label>Laws Weight: <span id="lawsWeightValue">0.05</span></label>
+                        <div class="weight-slider">
+                            <input type="range" id="lawsWeight" min="0" max="1" step="0.05" value="0.05">
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <label>Max Results: <span id="maxResultsValue">20</span></label>
+                        <div class="weight-slider">
+                            <input type="range" id="maxResults" min="5" max="50" step="5" value="20">
+                        </div>
+                    </div>
+                    <div class="controls-row">
+                        <button id="applyConfigButton" class="btn success">✓ Apply Config</button>
+                        <button id="resetConfigButton" class="btn ghost">↻ Reset</button>
+                    </div>
+                </div>
+
+                <!-- General Settings -->
+                <div class="panel">
+                    <h3>Ρυθμίσεις</h3>
+                    <div class="settings-group">
+                        <div class="toggle">
+                            <span>Εμφάνιση Context</span>
+                            <div class="switch" id="contextToggle"></div>
+                        </div>
+                        <div class="toggle">
+                            <span>Debug Mode</span>
+                            <div class="switch" id="debugToggle"></div>
+                        </div>
+                        <div class="toggle">
+                            <span>Σκοτεινό Θέμα</span>
+                            <div class="switch" id="themeToggle"></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:15px;">
+                        <label>Remote LLM Μέθοδος</label>
+                        <div class="radio-list" id="remoteMethods">
+                            <label><input type="radio" name="remote-method" value="google_ai" checked> Google AI</label>
+                            <label><input type="radio" name="remote-method" value="openai_compatible"> OpenAI</label>
+                            <label><input type="radio" name="remote-method" value="huggingface_inference"> HuggingFace</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Questions -->
+                <div class="panel">
+                    <h3>Δημοφιλείς Ερωτήσεις</h3>
+                    <div class="quick-questions">
+                        <div class="quick-question">Πώς υπολογίζεται η αποζημίωση απόλυσης;</div>
+                        <div class="quick-question">Πόσος είναι ο κατώτατος μισθός;</div>
+                        <div class="quick-question">Τι μισθό δικαιούται ο εργαζόμενος για τις Κυριακές και τις αργίες;</div>
+                        <div class="quick-question">Τι άδειες δικαιούμαι;</div>
+                        <div class="quick-question">Πότε πρέπει να καταβληθεί το Δώρο Πάσχα;</div>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="panel">
+                    <h3>📊 Multi-Source Status</h3>
+                    <div class="source-status">
+                        <div class="source-item">
+                            <div class="status-value" id="qaCount">-</div>
+                            <div class="status-label">QA Docs</div>
+                        </div>
+                        <div class="source-item">
+                            <div class="status-value" id="notesCount">-</div>
+                            <div class="status-label">Notes</div>
+                        </div>
+                        <div class="source-item">
+                            <div class="status-value" id="lawsCount">-</div>
+                            <div class="status-label">Laws</div>
+                        </div>
+                    </div>
+
+                    <div class="system-status" style="margin-top:15px;">
+                        <div class="status-item">
+                            <div class="status-value" id="totalResults">-</div>
+                            <div class="status-label">Last Results</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="responseTime">-</div>
+                            <div class="status-label">Response (s)</div>
+                        </div>
+                    </div>
+
+                    <div class="controls-row" style="margin-top:15px;">
+                        <button id="clearButton" class="btn ghost">🗑️ Clear Chat</button>
+                        <button id="exportButton" class="btn ghost">⬇️ Export</button>
+                        <button id="statsButton" class="btn ghost">📈 Stats</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MultiSourceLegalChatbotUI {
+            constructor() {
+                // session & state
+                this.sessionId = 'session_' + Math.random().toString(36).substr(2,9);
+                this.conversationCount = 0;
+                this.isProcessing = false;
+                this.chatbotReady = false;
+                this.canRetry = false;
+
+                // settings
+                this.showContext = false;
+                this.debugMode = false;
+                this.darkTheme = false;
+
+                // multi-source config
+                this.currentConfig = {
+                    qa_weight: 0.5,
+                    notes_weight: 0.35,
+                    laws_weight: 0.15,
+                    max_results: 20
+                };
+
+                // cache elements and setup
+                this.cacheElements();
+                this.setupEventListeners();
+                this.loadSettings();
+                this.checkStatus();
+
+                // periodic status check
+                setInterval(() => this.checkStatus(), 10000);
+                this.canRetryReview = false; // Προσθήκη
+            }
+
+            cacheElements() {
+                // main elements
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.remoteButton = document.getElementById('remoteButton');
+                this.testRemoteButton = document.getElementById('testRemoteButton');
+                this.retryButton = document.getElementById('retryButton');
+                this.batchButton = document.getElementById('batchButton');
+                this.loadingEl = document.getElementById('loading');
+                this.loadingLabel = document.getElementById('loadingLabel');
+
+                // status elements
+                this.statusDot = document.getElementById('statusDot');
+                this.statusText = document.getElementById('statusText');
+                this.systemInfo = document.getElementById('systemInfo');
+
+                // config elements
+                this.qaWeight = document.getElementById('qaWeight');
+                this.notesWeight = document.getElementById('notesWeight');
+                this.lawsWeight = document.getElementById('lawsWeight');
+                this.maxResults = document.getElementById('maxResults');
+                this.qaWeightValue = document.getElementById('qaWeightValue');
+                this.notesWeightValue = document.getElementById('notesWeightValue');
+                this.lawsWeightValue = document.getElementById('lawsWeightValue');
+                this.maxResultsValue = document.getElementById('maxResultsValue');
+                this.applyConfigButton = document.getElementById('applyConfigButton');
+                this.resetConfigButton = document.getElementById('resetConfigButton');
+
+                // settings toggles
+                this.contextToggle = document.getElementById('contextToggle');
+                this.debugToggle = document.getElementById('debugToggle');
+                this.themeToggle = document.getElementById('themeToggle');
+
+                // stats elements
+                this.qaCount = document.getElementById('qaCount');
+                this.notesCount = document.getElementById('notesCount');
+                this.lawsCount = document.getElementById('lawsCount');
+                this.totalResults = document.getElementById('totalResults');
+                this.responseTime = document.getElementById('responseTime');
+
+                // action buttons
+                this.clearButton = document.getElementById('clearButton');
+                this.exportButton = document.getElementById('exportButton');
+                this.statsButton = document.getElementById('statsButton');
+
+
+                this.reviewButton = document.getElementById('reviewButton');
+                this.retryReviewButton = document.getElementById('retryReviewButton');
+            }
+
+            setupEventListeners() {
+                // sending messages
+                this.sendButton.addEventListener('click', () => this.sendMessage());
+                this.remoteButton.addEventListener('click', () => this.sendRemoteMessage());
+                this.retryButton.addEventListener('click', () => this.retryWithRemote());
+                this.testRemoteButton.addEventListener('click', () => this.testRemoteConnections());
+                this.batchButton.addEventListener('click', () => this.showBatchDialog());
+
+                // input handling
+                this.messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                this.messageInput.addEventListener('input', () => {
+                    this.messageInput.style.height = 'auto';
+                    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+                });
+
+                // config sliders
+                this.qaWeight.addEventListener('input', (e) => {
+                    this.qaWeightValue.textContent = parseFloat(e.target.value).toFixed(2);
+                });
+                this.notesWeight.addEventListener('input', (e) => {
+                    this.notesWeightValue.textContent = parseFloat(e.target.value).toFixed(2);
+                });
+                this.lawsWeight.addEventListener('input', (e) => {
+                    this.lawsWeightValue.textContent = parseFloat(e.target.value).toFixed(2);
+                });
+                this.maxResults.addEventListener('input', (e) => {
+                    this.maxResultsValue.textContent = e.target.value;
+                });
+
+                // config buttons
+                this.applyConfigButton.addEventListener('click', () => this.applyConfig());
+                this.resetConfigButton.addEventListener('click', () => this.resetConfig());
+
+                // quick questions
+                document.querySelectorAll('.quick-question').forEach(q => {
+                    q.addEventListener('click', () => {
+                        this.messageInput.value = q.textContent;
+                        this.sendMessage();
+                    });
+                });
+
+                // settings toggles
+                this.contextToggle.addEventListener('click', () => {
+                    this.showContext = !this.showContext;
+                    this.contextToggle.classList.toggle('active', this.showContext);
+                    this.saveSettings();
+                });
+                this.debugToggle.addEventListener('click', () => {
+                    this.debugMode = !this.debugMode;
+                    this.debugToggle.classList.toggle('active', this.debugMode);
+                    this.saveSettings();
+                });
+                this.themeToggle.addEventListener('click', () => {
+                    this.darkTheme = !this.darkTheme;
+                    this.themeToggle.classList.toggle('active', this.darkTheme);
+                    document.body.setAttribute('data-theme', this.darkTheme ? 'dark' : 'light');
+                    this.saveSettings();
+                });
+
+                // action buttons
+                this.clearButton.addEventListener('click', () => this.clearChat());
+                this.exportButton.addEventListener('click', () => this.exportChat());
+                this.statsButton.addEventListener('click', () => this.showStats());
+
+
+                this.reviewButton.addEventListener('click', () => this.sendReviewMessage());
+                this.retryReviewButton.addEventListener('click', () => this.retryWithReview());
+            }
+
+            async checkStatus() {
+                try {
+                    const resp = await fetch('/api/status');
+                    const data = await resp.json();
+
+                    if (data.status === 'ready' || data.chatbot_loaded) {
+                        this.chatbotReady = true;
+                        this.statusDot.style.background = 'var(--success-color)';
+                        this.statusText.textContent = 'Multi-Source Ready';
+                        this.sendButton.disabled = false;
+                        this.remoteButton.disabled = false;
+                        this.batchButton.disabled = false;
+
+                        // Update multi-source info
+                        if (data.multi_source_info) {
+                            const sources = data.multi_source_info.sources;
+                            this.qaCount.textContent = sources.qa?.documents || '-';
+                            this.notesCount.textContent = sources.notes?.documents || '-';
+                            this.lawsCount.textContent = sources.laws?.documents || '-';
+                            
+                            const totalDocs = Object.values(sources).reduce((sum, src) => sum + (src.documents || 0), 0);
+                            this.systemInfo.textContent = `${totalDocs} docs, ${data.multi_source_info.total_sources} sources`;
+                        }
+
+                        if (data.model_info) {
+                            this.systemInfo.textContent += ` | ${data.model_info.llm_model || 'Local LLM'}`;
+                        }
+
+                    } else if (data.status === 'loading') {
+                        this.chatbotReady = false;
+                        this.statusDot.style.background = 'var(--accent-color)';
+                        this.statusText.textContent = 'Loading...';
+                        this.systemInfo.textContent = data.initialization_progress || '';
+                        this.sendButton.disabled = true;
+                        this.remoteButton.disabled = true;
+                        this.batchButton.disabled = true;
+                    } else {
+                        this.chatbotReady = false;
+                        this.statusDot.style.background = 'var(--error-color)';
+                        this.statusText.textContent = 'Error';
+                        this.systemInfo.textContent = data.error || '';
+                        this.sendButton.disabled = true;
+                        this.remoteButton.disabled = true;
+                        this.batchButton.disabled = true;
+                    }
+                } catch (err) {
+                    console.error('Status check failed:', err);
+                    this.chatbotReady = false;
+                    this.statusDot.style.background = 'var(--error-color)';
+                    this.statusText.textContent = 'Connection Error';
+                    this.systemInfo.textContent = '';
+                    this.sendButton.disabled = true;
+                    this.remoteButton.disabled = true;
+                    this.batchButton.disabled = true;
+                }
+            }
+
+            loadSettings() {
+                try {
+                    const settings = JSON.parse(localStorage.getItem('multisource-chatbot-settings') || '{}');
+                    this.showContext = settings.showContext || false;
+                    this.debugMode = settings.debugMode || false;
+                    this.darkTheme = settings.darkTheme || false;
+                    
+                    this.contextToggle.classList.toggle('active', this.showContext);
+                    this.debugToggle.classList.toggle('active', this.debugMode);
+                    this.themeToggle.classList.toggle('active', this.darkTheme);
+                    
+                    if (this.darkTheme) document.body.setAttribute('data-theme', 'dark');
+                    
+                    // Load config settings
+                    if (settings.config) {
+                        this.currentConfig = { ...this.currentConfig, ...settings.config };
+                        this.updateConfigUI();
+                    }
+                } catch (e) { 
+                    console.error('loadSettings error', e); 
+                }
+            }
+
+            saveSettings() {
+                localStorage.setItem('multisource-chatbot-settings', JSON.stringify({
+                    showContext: this.showContext,
+                    debugMode: this.debugMode,
+                    darkTheme: this.darkTheme,
+                    config: this.currentConfig
+                }));
+            }
+
+            updateConfigUI() {
+                this.qaWeight.value = this.currentConfig.qa_weight;
+                this.notesWeight.value = this.currentConfig.notes_weight;
+                this.lawsWeight.value = this.currentConfig.laws_weight;
+                this.maxResults.value = this.currentConfig.max_results;
+                
+                this.qaWeightValue.textContent = this.currentConfig.qa_weight.toFixed(2);
+                this.notesWeightValue.textContent = this.currentConfig.notes_weight.toFixed(2);
+                this.lawsWeightValue.textContent = this.currentConfig.laws_weight.toFixed(2);
+                this.maxResultsValue.textContent = this.currentConfig.max_results;
+            }
+
+            async applyConfig() {
+                const newConfig = {
+                    qa_weight: parseFloat(this.qaWeight.value),
+                    notes_weight: parseFloat(this.notesWeight.value),
+                    laws_weight: parseFloat(this.lawsWeight.value),
+                    max_results: parseInt(this.maxResults.value)
+                };
+
+                try {
+                    const resp = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(newConfig)
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.currentConfig = newConfig;
+                        this.saveSettings();
+                        this.addMessage('bot', `✅ Configuration updated: QA=${newConfig.qa_weight.toFixed(2)}, Notes=${newConfig.notes_weight.toFixed(2)}, Laws=${newConfig.laws_weight.toFixed(2)}, Max=${newConfig.max_results}`, null, false);
+                    } else {
+                        this.addMessage('bot', `❌ Config update failed: ${data.error}`, null, true);
+                    }
+                } catch (err) {
+                    console.error('applyConfig error', err);
+                    this.addMessage('bot', `❌ Config error: ${err.message}`, null, true);
+                }
+            }
+
+            resetConfig() {
+                this.currentConfig = { qa_weight: 0.5, notes_weight: 0.35, laws_weight: 0.15, max_results: 20 };
+                this.updateConfigUI();
+                this.applyConfig();
+            }
+
+            setProcessing(on, text) {
+                this.isProcessing = on;
+                if (on) {
+                    this.loadingLabel.textContent = text || 'Processing...';
+                    this.loadingEl.classList.add('show');
+                    this.sendButton.disabled = true;
+                    this.remoteButton.disabled = true;
+                    this.reviewButton.disabled = true;
+                    this.retryButton.disabled = true;
+                    this.retryReviewButton.disabled = true;
+                    this.batchButton.disabled = true;
+                } else {
+                    this.loadingEl.classList.remove('show');
+                    this.sendButton.disabled = !this.chatbotReady;
+                    this.remoteButton.disabled = !this.chatbotReady;
+                    this.reviewButton.disabled = !this.chatbotReady;
+                    this.batchButton.disabled = !this.chatbotReady;
+                    this.retryButton.disabled = !this.canRetry;
+                    this.retryReviewButton.disabled = !this.canRetryReview;
+                }
+            }
+            
+
+
+            async retryWithReview() {
+                if (!this.canRetryReview || this.isProcessing) return;
+                const selectedMethod = document.querySelector('input[name="remote-method"]:checked')?.value || 'google_ai';
+                
+                try {
+                    this.setProcessing(true, `Retry Review Mode (${selectedMethod})...`);
+                    const resp = await fetch('/api/retry-review', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            remote_method: selectedMethod, 
+                            session_id: this.sessionId 
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.addMessage('bot', data.response, data.query_result?.statistics, false, 'retry-review', selectedMethod, data.review_info);
+                        this.conversationCount++;
+                    } else {
+                        this.addMessage('bot', data.error || 'Review retry failed', null, true);
+                        if (data.fallback_response) {
+                            this.addMessage('bot', '💡 Previous response: ' + data.fallback_response.slice(0,300) + '...', null, false);
+                        }
+                    }
+                } catch (err) {
+                    console.error('retryWithReview error', err);
+                    this.addMessage('bot', 'Review retry error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+
+
+
+
+
+            async sendReviewMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isProcessing) return;
+
+                if (!this.chatbotReady) {
+                    this.addMessage('bot', 'System not ready for review mode.', null, true);
+                    return;
+                }
+                
+                const selectedMethod = document.querySelector('input[name="remote-method"]:checked')?.value || 'google_ai';
+
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                this.messageInput.style.height = 'auto';
+
+                try {
+                    this.setProcessing(true, `Review Mode: Local LLM → Remote Review (${selectedMethod})...`);
+                    const resp = await fetch('/api/chat/review', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            query: message,
+                            show_context: this.showContext,
+                            show_debug: this.debugMode,
+                            remote_method: selectedMethod,
+                            session_id: this.sessionId,
+                            config: this.currentConfig
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.addMessage('bot', data.response, data.multi_source_stats, false, 'review', selectedMethod, data.review_info);
+                        this.canRetry = false; // Review mode doesn't use regular retry
+                        this.canRetryReview = true; // Enable review retry
+                        this.conversationCount++;
+                        
+                        if (data.multi_source_stats) {
+                            this.updateLastQueryStats(data.multi_source_stats);
+                        }
+                    } else {
+                        this.addMessage('bot', data.error || 'Review mode error', null, true);
+                    }
+                } catch (err) {
+                    console.error('sendReviewMessage error', err);
+                    this.addMessage('bot', 'Review mode error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+
+
+
+
+            
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isProcessing) return;
+
+                if (!this.chatbotReady) {
+                    this.addMessage('bot', 'Multi-source chatbot is not ready yet. Please wait for initialization...', null, true);
+                    return;
+                }
+
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                this.messageInput.style.height = 'auto';
+
+                try {
+                    this.setProcessing(true, 'Multi-source search with Local LLM...');
+                    const resp = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            query: message,
+                            show_context: this.showContext,
+                            show_debug: this.debugMode,
+                            session_id: this.sessionId,
+                            config: this.currentConfig
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.addMessage('bot', data.response, data.multi_source_stats, false, 'local');
+                        this.canRetry = !!data.can_retry_remote;
+                        this.retryButton.disabled = !this.canRetry;
+                        this.conversationCount++;
+                        
+                        // Update stats display
+                        if (data.multi_source_stats) {
+                            this.updateLastQueryStats(data.multi_source_stats);
+                        }
+                    } else {
+                        this.addMessage('bot', data.error || 'Unknown error', null, true);
+                    }
+                } catch (err) {
+                    console.error('sendMessage error', err);
+                    this.addMessage('bot', 'Connection error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            async sendRemoteMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isProcessing) return;
+                if (!this.chatbotReady) {
+                    this.addMessage('bot', 'System not ready for remote calls.', null, true);
+                    return;
+                }
+                
+                const selectedMethod = document.querySelector('input[name="remote-method"]:checked')?.value || 'google_ai';
+
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                this.messageInput.style.height = 'auto';
+
+                try {
+                    this.setProcessing(true, `Multi-source search with Remote LLM (${selectedMethod})...`);
+                    const resp = await fetch('/api/chat/remote', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            query: message,
+                            show_context: this.showContext,
+                            show_debug: this.debugMode,
+                            remote_method: selectedMethod,
+                            session_id: this.sessionId,
+                            config: this.currentConfig
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.addMessage('bot', data.response, data.multi_source_stats, false, 'remote', selectedMethod);
+                        this.conversationCount++;
+                        
+                        if (data.multi_source_stats) {
+                            this.updateLastQueryStats(data.multi_source_stats);
+                        }
+                    } else {
+                        this.addMessage('bot', data.error || 'Remote error', null, true);
+                    }
+                } catch (err) {
+                    console.error('sendRemoteMessage error', err);
+                    this.addMessage('bot', 'Remote LLM error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            async retryWithRemote() {
+                if (!this.canRetry || this.isProcessing) return;
+                const selectedMethod = document.querySelector('input[name="remote-method"]:checked')?.value || 'google_ai';
+                
+                try {
+                    this.setProcessing(true, `Retry with Remote LLM (${selectedMethod})...`);
+                    const resp = await fetch('/api/retry', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            remote_method: selectedMethod, 
+                            session_id: this.sessionId 
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.addMessage('bot', data.response, data.query_result?.statistics, false, 'retry', selectedMethod);
+                        this.conversationCount++;
+                    } else {
+                        this.addMessage('bot', data.error || 'Retry failed', null, true);
+                        if (data.fallback_response) {
+                            this.addMessage('bot', '💡 Previous local response: ' + data.fallback_response.slice(0,300) + '...', null, false);
+                        }
+                    }
+                } catch (err) {
+                    console.error('retryWithRemote error', err);
+                    this.addMessage('bot', 'Retry error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            async testRemoteConnections() {
+                try {
+                    this.setProcessing(true, 'Testing remote connections...');
+                    const resp = await fetch('/api/test-remote', { method: 'POST' });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        this.showTestResults(data);
+                    } else {
+                        this.addMessage('bot', 'Test failed: ' + (data.error || 'unknown'), null, true);
+                    }
+                } catch (err) {
+                    console.error('testRemoteConnections error', err);
+                    this.addMessage('bot', 'Test error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            showTestResults(data) {
+                if (!data.summary) return;
+                const working = data.summary.working_methods?.join(', ') || 'None';
+                const failed = data.summary.failed_methods?.join(', ') || 'None';
+                const msg = `🧪 Remote LLM Test Results:\n• Working: ${working}\n• Failed: ${failed}\n• Test time: ${data.summary.test_time || '-'}s`;
+                this.addMessage('bot', msg, null, false);
+            }
+
+            async showBatchDialog() {
+                const queries = prompt('Enter queries separated by newlines:');
+                if (!queries) return;
+                
+                const queryList = queries.split('\n').filter(q => q.trim());
+                if (queryList.length === 0) return;
+
+                try {
+                    this.setProcessing(true, `Processing ${queryList.length} queries in batch...`);
+                    const resp = await fetch('/api/batch', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            queries: queryList,
+                            config: this.currentConfig
+                        })
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        const summary = data.summary;
+                        this.addMessage('bot', `📦 Batch Results:\n• Total queries: ${summary.total_queries}\n• Successful: ${summary.successful_queries}\n• Failed: ${summary.failed_queries}\n• Total time: ${summary.total_time}s\n• Avg per query: ${summary.average_time_per_query}s`, null, false);
+                        
+                        // Show individual results
+                        data.results.forEach((result, i) => {
+                            if (result.success) {
+                                this.addMessage('user', queryList[i]);
+                                this.addMessage('bot', result.response, result.multi_source_stats, false, 'batch');
+                            }
+                        });
+                    } else {
+                        this.addMessage('bot', 'Batch processing failed: ' + (data.error || 'unknown'), null, true);
+                    }
+                } catch (err) {
+                    console.error('Batch error', err);
+                    this.addMessage('bot', 'Batch error: ' + (err.message || err), null, true);
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            async showStats() {
+                try {
+                    const resp = await fetch('/api/stats');
+                    const data = await resp.json();
+                    
+                    if (data.multisource_stats) {
+                        let statsMsg = '📊 Multi-Source System Stats:\n\n';
+                        
+                        for (const [source, stats] of Object.entries(data.multisource_stats)) {
+                            statsMsg += `🔹 ${source.toUpperCase()}: ${stats.documents} documents\n`;
+                        }
+                        
+                        statsMsg += `\n📈 Performance:\n`;
+                        statsMsg += `• Sessions: ${data.session_stats?.total_sessions || 0}\n`;
+                        statsMsg += `• Conversations: ${data.session_stats?.total_conversations || 0}\n`;
+                        statsMsg += `• Avg response time: ${data.performance_stats?.average_response_time || 0}s\n`;
+                        statsMsg += `• Multi-source responses: ${data.performance_stats?.multisource_responses || 0}`;
+                        
+                        this.addMessage('bot', statsMsg, null, false);
+                    }
+                } catch (err) {
+                    console.error('Stats error', err);
+                    this.addMessage('bot', 'Stats error: ' + (err.message || err), null, true);
+                }
+            }
+
+            updateLastQueryStats(stats) {
+                if (stats.final_results_count !== undefined) {
+                    this.totalResults.textContent = stats.final_results_count;
+                }
+                if (stats.processing_time !== undefined) {
+                    this.responseTime.textContent = stats.processing_time.toFixed(2);
+                }
+            }
+
+            addMessage(type, content, stats = null, isError = false, source = null, method = null, reviewInfo = null) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                const safeContent = String(content).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+                
+                let badgeHtml = '';
+                if (source && type === 'bot') {
+                    if (source === 'local') {
+                        badgeHtml = '<div class="method-badge local-badge">🖥️ Local LLM</div>';
+                    } else if (source === 'remote') {
+                        badgeHtml = `<div class="method-badge remote-badge">☁️ Remote LLM (${method})</div>`;
+                    } else if (source === 'retry') {
+                        badgeHtml = `<div class="method-badge retry-badge">↻ Retry (${method})</div>`;
+                    } else if (source === 'review') {
+                        badgeHtml = `<div class="method-badge" style="background:#e8f5e8;color:#2e7d32;">🔍 Review Mode (${method})</div>`;
+                    } else if (source === 'retry-review') {
+                        badgeHtml = `<div class="method-badge" style="background:#fff3e0;color:#f57c00;">🔄 Review Retry (${method})</div>`;
+                    } else if (source === 'batch') {
+                        badgeHtml = '<div class="method-badge local-badge">📦 Batch</div>';
+                    }
+                }
+
+                // **ΝΕΟ ΚΟΜΜΑΤΙ: Review info display με εμφάνιση και των δύο απαντήσεων**
+                let reviewContentHtml = '';
+                if (reviewInfo && (source === 'review' || source === 'retry-review')) {
+                    if (reviewInfo.review_successful && reviewInfo.local_response) {
+                        // Εμφάνισε πρώτα την τοπική απάντηση
+                        const safeLocalResponse = String(reviewInfo.local_response).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+                        reviewContentHtml = `
+                            <div style="background:#f8fafc;border:1px solid #94a3b8;border-radius:12px;padding:15px;margin:12px 0;">
+                                <div style="font-weight:600;color:#475569;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+                                    <span>🖥️ ΤΟΠΙΚΗ ΑΠΑΝΤΗΣΗ:</span>
+                                    <span style="font-size:0.8rem;background:#e2e8f0;padding:2px 8px;border-radius:12px;">${reviewInfo.local_response_length || 0} χαρακτήρες</span>
+                                </div>
+                                <div style="color:#334155;line-height:1.5;border-left:3px solid #94a3b8;padding-left:12px;">
+                                    ${safeLocalResponse}
+                                </div>
+                            </div>
+                            
+                            <div style="background:#f0f9ff;border:1px solid #0ea5e9;border-radius:12px;padding:15px;margin:12px 0;">
+                                <div style="font-weight:600;color:#0369a1;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+                                    <span>🔍 ΔΙΟΡΘΩΜΕΝΗ ΑΠΑΝΤΗΣΗ:</span>
+                                    <span style="font-size:0.8rem;background:#bae6fd;padding:2px 8px;border-radius:12px;">Reviewed by ${reviewInfo.review_model || 'Remote LLM'}</span>
+                                </div>
+                                <div style="color:#0c4a6e;line-height:1.5;border-left:3px solid #0ea5e9;padding-left:12px;">
+                                    ${safeContent}
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Στο review mode, μην εμφανίζεις την κύρια απάντηση ξανά
+                        content = '';
+                        
+                    } else if (!reviewInfo.review_successful) {
+                        reviewContentHtml = `
+                            <div style="background:#fef2f2;border:1px solid #ef4444;border-radius:12px;padding:15px;margin:12px 0;">
+                                <div style="font-weight:600;color:#dc2626;margin-bottom:8px;">⚠️ Review Failed:</div>
+                                <div style="color:#991b1b;font-size:0.9rem;">
+                                    Error: ${reviewInfo.review_error || 'Unknown error'}<br>
+                                    Showing original local response.
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                let statsHtml = '';
+                if (stats && type === 'bot') {
+                    statsHtml = '<div class="message-stats">';
+                    if (stats.total_sources !== undefined) {
+                        statsHtml += `<span class="stat-item">🗂️ ${stats.total_sources} sources</span>`;
+                    }
+                    if (stats.final_results_count !== undefined) {
+                        statsHtml += `<span class="stat-item">📄 ${stats.final_results_count} results</span>`;
+                    }
+                    if (stats.processing_time !== undefined) {
+                        statsHtml += `<span class="stat-item">⏱️ ${stats.processing_time}s</span>`;
+                    }
+                    if (stats.source_distribution) {
+                        for (const [src, count] of Object.entries(stats.source_distribution)) {
+                            statsHtml += `<span class="stat-item">${src}: ${count}</span>`;
+                        }
+                    }
+                    statsHtml += '</div>';
+                }
+                
+                // Κτίσε το τελικό HTML
+                let finalContent = '';
+                if (reviewContentHtml) {
+                    // Review mode: εμφάνισε τις δύο απαντήσεις
+                    finalContent = reviewContentHtml;
+                } else if (content) {
+                    // Κανονική εμφάνιση
+                    finalContent = `<div class="message-content ${isError ? 'error-message' : ''}">${safeContent}</div>`;
+                }
+                
+                messageDiv.innerHTML = `
+                    ${badgeHtml}
+                    ${finalContent}
+                    ${statsHtml}
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            clearChat() {
+                if (!confirm('Are you sure you want to clear the chat?')) return;
+                this.chatMessages.innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">
+                            Chat cleared. Ask a new question!
+                        </div>
+                    </div>
+                `;
+                this.conversationCount = 0;
+                this.canRetry = false;
+                this.retryButton.disabled = true;
+            }
+
+            exportChat() {
+                const messages = this.chatMessages.querySelectorAll('.message');
+                let exportData = 'Enhanced Multi-Source Legal RAG Chatbot - Chat Export\n' + '='.repeat(60) + '\n\n';
+                
+                messages.forEach(msg => {
+                    const isUser = msg.classList.contains('user');
+                    const content = msg.querySelector('.message-content');
+                    const text = content?.innerText || msg.innerText;
+                    exportData += `${isUser ? 'USER' : 'BOT'}: ${text}\n\n`;
+                });
+                
+                const blob = new Blob([exportData], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `multisource_chat_export_${new Date().toISOString().slice(0,10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new MultiSourceLegalChatbotUI();
+        });
+    </script>
+</body>
+</html>
