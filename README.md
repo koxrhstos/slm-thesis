@@ -2,6 +2,9 @@
 
 Prototype implementation of efficient Small Language Models (SLMs) with fine-tuning, Retrieval-Augmented Generation (RAG), and quantization for resource-constrained environments - chatbot for Greek Labor Law.
 
+All codes developed to support the thesis, specifically containing codes for fine-tuned models, creation of rag indexes for each data source, a query.py to extract the appropriate data according to the user's query, the chatbot script, as well as a flasks server together with an html file for a user-friendly interface. Finally, it also contains codes for model evaluation, both for regular model formats and for gguf formats, in order to support quantized models.
+
+
 ## Description
 
 This project is a prototype implementation focusing on the development and optimization of Small Language Models (SLMs) for environments with limited computational resources. The main features include:
